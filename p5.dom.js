@@ -435,7 +435,6 @@
   p5.prototype.createImg = function() {
     p5._validateParameters('createImg', arguments);
     var elt = document.createElement('img');
-    elt.crossOrigin = 'Anonymous';
     var args = arguments;
     var self;
     var setAttrs = function() {
@@ -672,7 +671,7 @@
    * function mySelectEvent() {
    *   var item = sel.value();
    *   background(200);
-   *   text('It is a ' + item + '!', 50, 50);
+   *   text('it is a' + item + '!', 50, 50);
    * }
    * </code></div>
    */
@@ -1003,9 +1002,9 @@
    * @param  {String} [multiple] optional to allow multiple files selected
    * @return {p5.Element} pointer to <a href="#/p5.Element">p5.Element</a> holding created DOM element
    * @example
-   * <div><code>
-   * let input;
-   * let img;
+   * <div class='norender'><code>
+   * var input;
+   * var img;
    *
    * function setup() {
    *   input = createFileInput(handleFile);
@@ -1013,7 +1012,6 @@
    * }
    *
    * function draw() {
-   *   background(255);
    *   if (img) {
    *     image(img, 0, 0, width, height);
    *   }
@@ -1024,8 +1022,6 @@
    *   if (file.type === 'image') {
    *     img = createImg(file.data);
    *     img.hide();
-   *   } else {
-   *     img = null;
    *   }
    * }
    * </code></div>
@@ -2057,113 +2053,6 @@
       this.elt.parentNode.removeChild(this.elt);
     }
     delete this;
-  };
-
-  /**
-   * Registers a callback that gets called every time a file that is
-   * dropped on the element has been loaded.
-   * p5 will load every dropped file into memory and pass it as a p5.File object to the callback.
-   * Multiple files dropped at the same time will result in multiple calls to the callback.
-   *
-   * You can optionally pass a second callback which will be registered to the raw
-   * <a href="https://developer.mozilla.org/en-US/docs/Web/Events/drop">drop</a> event.
-   * The callback will thus be provided the original
-   * <a href="https://developer.mozilla.org/en-US/docs/Web/API/DragEvent">DragEvent</a>.
-   * Dropping multiple files at the same time will trigger the second callback once per drop,
-   * whereas the first callback will trigger for each loaded file.
-   *
-   * @method drop
-   * @param  {Function} callback  callback to receive loaded file.
-   * @param  {Function} [fxn]     callback triggered when files are dropped.
-   * @chainable
-   * @example
-   * <div><code>
-   * function setup() {
-   *   var c = createCanvas(100, 100);
-   *   background(200);
-   *   textAlign(CENTER);
-   *   text('drop file', width / 2, height / 2);
-   *   c.drop(gotFile);
-   * }
-   *
-   * function gotFile(file) {
-   *   background(200);
-   *   text('received file:', width / 2, height / 2);
-   *   text(file.name, width / 2, height / 2 + 50);
-   * }
-   * </code></div>
-   *
-   * <div><code>
-   * var img;
-   *
-   * function setup() {
-   *   var c = createCanvas(100, 100);
-   *   background(200);
-   *   textAlign(CENTER);
-   *   text('drop image', width / 2, height / 2);
-   *   c.drop(gotFile);
-   * }
-   *
-   * function draw() {
-   *   if (img) {
-   *     image(img, 0, 0, width, height);
-   *   }
-   * }
-   *
-   * function gotFile(file) {
-   *   img = createImg(file.data).hide();
-   * }
-   * </code></div>
-   *
-   * @alt
-   * Canvas turns into whatever image is dragged/dropped onto it.
-   */
-  p5.Element.prototype.drop = function(callback, fxn) {
-    // Is the file stuff supported?
-    if (window.File && window.FileReader && window.FileList && window.Blob) {
-      if (!this._dragDisabled) {
-        this._dragDisabled = true;
-
-        var preventDefault = function(evt) {
-          evt.preventDefault();
-        };
-
-        // If you want to be able to drop you've got to turn off
-        // a lot of default behavior.
-        // avoid `attachListener` here, since it overrides other handlers.
-        this.elt.addEventListener('dragover', preventDefault);
-
-        // If this is a drag area we need to turn off the default behavior
-        this.elt.addEventListener('dragleave', preventDefault);
-      }
-
-      // Attach the second argument as a callback that receives the raw drop event
-      if (typeof fxn !== 'undefined') {
-        p5.Element._attachListener('drop', fxn, this);
-      }
-
-      // Deal with the files
-      p5.Element._attachListener(
-        'drop',
-        function(evt) {
-          evt.preventDefault();
-
-          // A FileList
-          var files = evt.dataTransfer.files;
-
-          // Load each one and trigger the callback
-          for (var i = 0; i < files.length; i++) {
-            var f = files[i];
-            p5.File._load(f, callback);
-          }
-        },
-        this
-      );
-    } else {
-      console.log('The File APIs are not fully supported in this browser.');
-    }
-
-    return this;
   };
 
   // =============================================================================
@@ -3274,9 +3163,13 @@
     this._prevTime = playbackTime;
   };
 
+  // =============================================================================
+  //                         p5.File
+  // =============================================================================
+
   /**
-   * Base class for a file.
-   * Used for Element.drop and createFileInput.
+   * Base class for a file
+   * Using this for createFileInput
    *
    * @class p5.File
    * @constructor
@@ -3327,28 +3220,28 @@
      */
     this.data = undefined;
   };
-
-  p5.File._createLoader = function(theFile, callback) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var p5file = new p5.File(theFile);
-      p5file.data = e.target.result;
-      callback(p5file);
-    };
-    return reader;
-  };
-
-  p5.File._load = function(f, callback) {
-    // Text or data?
-    // This should likely be improved
-    if (/^text\//.test(f.type)) {
-      p5.File._createLoader(f, callback).readAsText(f);
-    } else if (!/^(video|audio)\//.test(f.type)) {
-      p5.File._createLoader(f, callback).readAsDataURL(f);
-    } else {
-      var file = new p5.File(f);
-      file.data = URL.createObjectURL(f);
-      callback(file);
-    }
-  };
 });
+
+p5.File._createLoader = function(theFile, callback) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var p5file = new p5.File(theFile);
+    p5file.data = e.target.result;
+    callback(p5file);
+  };
+  return reader;
+};
+
+p5.File._load = function(f, callback) {
+  // Text or data?
+  // This should likely be improved
+  if (/^text\//.test(f.type)) {
+    p5.File._createLoader(f, callback).readAsText(f);
+  } else if (!/^(video|audio)\//.test(f.type)) {
+    p5.File._createLoader(f, callback).readAsDataURL(f);
+  } else {
+    var file = new p5.File(f);
+    file.data = URL.createObjectURL(f);
+    callback(file);
+  }
+};
